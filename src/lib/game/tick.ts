@@ -225,7 +225,7 @@ function resolveActions(
         player.buffs = { ...player.buffs, rested: true };
         break;
       case 'build': {
-        const structureId = action.params.structure_id as string;
+        const structureId = (action.params.structure ?? action.params.structure_id) as string;
         if (structureId) {
           const result = resolveBuild(player, structureId);
           if (result.success) {
@@ -235,7 +235,7 @@ function resolveActions(
         break;
       }
       case 'craft': {
-        const itemId = action.params.item_id as string;
+        const itemId = (action.params.item ?? action.params.item_id) as string;
         if (itemId) {
           const result = resolveCraft(player, itemId);
           if (result.success) {

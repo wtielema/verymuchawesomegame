@@ -61,12 +61,12 @@ export default function ActionPanel({
       }
       setExpandedAction(null);
 
-      const params: Record<string, unknown> = {};
-      if (actionKey === 'move' && selectedHex) {
-        params.target_q = selectedHex.q;
-        params.target_r = selectedHex.r;
+      if (actionKey === 'move') {
+        if (!selectedHex) return;
+        onSubmitAction(actionKey, { target_q: selectedHex.q, target_r: selectedHex.r });
+        return;
       }
-      onSubmitAction(actionKey, params);
+      onSubmitAction(actionKey);
     },
     [expandedAction, selectedHex, onSubmitAction]
   );
@@ -118,18 +118,27 @@ export default function ActionPanel({
             <p className="text-xs text-gray-500 mb-2">Select structure to build:</p>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               {Object.entries(STRUCTURES).map(([key, def]) => {
+                const hasMaterials = Object.entries(def.cost).every(([res, amt]) => {
+                  const held = player.inventory.find(i => i.id === res);
+                  return held && held.quantity >= amt;
+                });
+                const alreadyBuilt = player.structures.includes(key);
+                const canBuild = canAfford('build') && hasMaterials && !alreadyBuilt;
                 const costStr = Object.entries(def.cost)
-                  .map(([res, amt]) => `${amt} ${res}`)
+                  .map(([res, amt]) => {
+                    const held = player.inventory.find(i => i.id === res)?.quantity ?? 0;
+                    return `${amt} ${res}${held < amt ? ` (have ${held})` : ''}`;
+                  })
                   .join(', ');
                 return (
                   <button
                     key={key}
                     onClick={() => handleBuild(key)}
-                    disabled={!canAfford('build')}
+                    disabled={!canBuild}
                     className="min-h-[44px] text-left px-3 py-2 rounded-lg bg-[#1a1a2e] border border-[#333355] hover:border-[#00ff88]/50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                   >
-                    <span className="block text-sm text-gray-200">{def.name}</span>
-                    <span className="block text-xs text-gray-500 mt-0.5">{costStr}</span>
+                    <span className="block text-sm text-gray-200">{def.name}{alreadyBuilt ? ' \u2713' : ''}</span>
+                    <span className={`block text-xs mt-0.5 ${hasMaterials ? 'text-gray-500' : 'text-[#ff4444]/70'}`}>{costStr}</span>
                   </button>
                 );
               })}
@@ -143,18 +152,29 @@ export default function ActionPanel({
             <p className="text-xs text-gray-500 mb-2">Select item to craft:</p>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               {Object.entries(ITEMS).map(([key, def]) => {
+                const hasMaterials = Object.entries(def.materials).every(([res, amt]) => {
+                  const held = player.inventory.find(i => i.id === res);
+                  return held && held.quantity >= amt;
+                });
+                const needsWorkbench = !player.structures.includes('workbench');
+                const canCraftItem = canAfford('craft') && hasMaterials && !needsWorkbench;
                 const costStr = Object.entries(def.materials)
-                  .map(([res, amt]) => `${amt} ${res}`)
+                  .map(([res, amt]) => {
+                    const held = player.inventory.find(i => i.id === res)?.quantity ?? 0;
+                    return `${amt} ${res}${held < amt ? ` (have ${held})` : ''}`;
+                  })
                   .join(', ');
                 return (
                   <button
                     key={key}
                     onClick={() => handleCraft(key)}
-                    disabled={!canAfford('craft')}
+                    disabled={!canCraftItem}
                     className="min-h-[44px] text-left px-3 py-2 rounded-lg bg-[#1a1a2e] border border-[#333355] hover:border-[#00ff88]/50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                   >
                     <span className="block text-sm text-gray-200">{def.name}</span>
-                    <span className="block text-xs text-gray-500 mt-0.5">{costStr}</span>
+                    <span className={`block text-xs mt-0.5 ${hasMaterials ? 'text-gray-500' : 'text-[#ff4444]/70'}`}>
+                      {costStr}{needsWorkbench ? ' (need workbench)' : ''}
+                    </span>
                     <span className="block text-xs text-[#00ff88]/70 mt-0.5">{def.effects}</span>
                   </button>
                 );

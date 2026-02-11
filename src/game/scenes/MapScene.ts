@@ -67,7 +67,7 @@ export class MapScene extends Phaser.Scene {
     });
 
     // Scroll to zoom
-    this.input.on('wheel', (_pointer: Phaser.Input.Pointer, _gx: number[], _gy: number[], _gz: number[], _gw: number, _event: WheelEvent, deltaY: number) => {
+    this.input.on('wheel', (_pointer: Phaser.Input.Pointer, _currentlyOver: Phaser.GameObjects.GameObject[], _dx: number, deltaY: number) => {
       const cam = this.cameras.main;
       const newZoom = Phaser.Math.Clamp(cam.zoom - deltaY * 0.001, 0.5, 3);
       cam.setZoom(newZoom);
@@ -114,7 +114,6 @@ export class MapScene extends Phaser.Scene {
 
   private renderHexPrism(
     g: Phaser.GameObjects.Graphics,
-    cx: number, cy: number,
     color: number, alpha: number,
     strokeColor: number, strokeAlpha: number,
   ) {
@@ -127,10 +126,10 @@ export class MapScene extends Phaser.Scene {
       const wallColor = darkenColor(color, shadings[idx]);
       g.fillStyle(wallColor, alpha);
       g.beginPath();
-      g.moveTo(cx + verts[i].x, cy + verts[i].y);
-      g.lineTo(cx + verts[j].x, cy + verts[j].y);
-      g.lineTo(cx + verts[j].x, cy + verts[j].y + WALL_HEIGHT);
-      g.lineTo(cx + verts[i].x, cy + verts[i].y + WALL_HEIGHT);
+      g.moveTo(verts[i].x, verts[i].y);
+      g.lineTo(verts[j].x, verts[j].y);
+      g.lineTo(verts[j].x, verts[j].y + WALL_HEIGHT);
+      g.lineTo(verts[i].x, verts[i].y + WALL_HEIGHT);
       g.closePath();
       g.fillPath();
 
@@ -142,9 +141,9 @@ export class MapScene extends Phaser.Scene {
     // Draw top face
     g.fillStyle(color, alpha);
     g.beginPath();
-    g.moveTo(cx + verts[0].x, cy + verts[0].y);
+    g.moveTo(verts[0].x, verts[0].y);
     for (let i = 1; i < 6; i++) {
-      g.lineTo(cx + verts[i].x, cy + verts[i].y);
+      g.lineTo(verts[i].x, verts[i].y);
     }
     g.closePath();
     g.fillPath();
@@ -184,9 +183,9 @@ export class MapScene extends Phaser.Scene {
       const strokeColor = isVisible ? 0x444466 : 0x222233;
       const strokeAlpha = 0.5;
 
-      const g = this.add.graphics();
+      const g = this.add.graphics({ x, y });
       g.setDepth(depth);
-      this.renderHexPrism(g, x, y, color, alpha, strokeColor, strokeAlpha);
+      this.renderHexPrism(g, color, alpha, strokeColor, strokeAlpha);
 
       const icons: Phaser.GameObjects.GameObject[] = [];
 
@@ -282,7 +281,7 @@ export class MapScene extends Phaser.Scene {
   }
 
   private addBiomePattern(x: number, y: number, biome: string, icons: Phaser.GameObjects.GameObject[], depth: number) {
-    const g = this.add.graphics();
+    const g = this.add.graphics({ x, y });
     g.setDepth(depth);
 
     switch (biome) {
@@ -292,7 +291,7 @@ export class MapScene extends Phaser.Scene {
           const dx = (Math.random() - 0.5) * HEX_SIZE * 0.8;
           const dy = (Math.random() - 0.5) * HEX_SIZE * 0.6 * ISO_Y_RATIO;
           g.fillStyle(0x00ff88, 0.15 + Math.random() * 0.15);
-          g.fillCircle(x + dx, y + dy, 1.5 + Math.random());
+          g.fillCircle(dx, dy, 1.5 + Math.random());
         }
         break;
       }
@@ -302,7 +301,7 @@ export class MapScene extends Phaser.Scene {
           const dx = (Math.random() - 0.5) * HEX_SIZE * 0.7;
           const dy = (Math.random() - 0.5) * HEX_SIZE * 0.5 * ISO_Y_RATIO;
           g.fillStyle(0xcc66ff, 0.12);
-          g.fillCircle(x + dx, y + dy, 2 + Math.random() * 2);
+          g.fillCircle(dx, dy, 2 + Math.random() * 2);
         }
         break;
       }
@@ -315,10 +314,10 @@ export class MapScene extends Phaser.Scene {
           const angle = Math.random() * Math.PI;
           const len = 3 + Math.random() * 4;
           g.lineBetween(
-            x + dx - Math.cos(angle) * len,
-            y + dy - Math.sin(angle) * len * ISO_Y_RATIO,
-            x + dx + Math.cos(angle) * len,
-            y + dy + Math.sin(angle) * len * ISO_Y_RATIO,
+            dx - Math.cos(angle) * len,
+            dy - Math.sin(angle) * len * ISO_Y_RATIO,
+            dx + Math.cos(angle) * len,
+            dy + Math.sin(angle) * len * ISO_Y_RATIO,
           );
         }
         break;
@@ -328,7 +327,7 @@ export class MapScene extends Phaser.Scene {
         g.lineStyle(1, 0xff6600, 0.1);
         for (let i = 0; i < 2; i++) {
           const r = 6 + i * 5;
-          g.arc(x, y + 5 * ISO_Y_RATIO, r, -0.8, 0.8, false);
+          g.arc(0, 5 * ISO_Y_RATIO, r, -0.8, 0.8, false);
           g.strokePath();
         }
         break;
@@ -336,8 +335,8 @@ export class MapScene extends Phaser.Scene {
       case 'ruin': {
         // Geometric fragments
         g.lineStyle(1, 0xdaa520, 0.15);
-        const rx = x - 5;
-        const ry = y - 3 * ISO_Y_RATIO;
+        const rx = -5;
+        const ry = -3 * ISO_Y_RATIO;
         g.strokeRect(rx, ry, 8, 6 * ISO_Y_RATIO);
         g.lineBetween(rx + 4, ry, rx + 4, ry + 6 * ISO_Y_RATIO);
         break;
@@ -345,8 +344,8 @@ export class MapScene extends Phaser.Scene {
       case 'chasm': {
         // Dark cracks
         g.lineStyle(1, 0x000000, 0.3);
-        g.lineBetween(x - 8, y - 3 * ISO_Y_RATIO, x + 5, y + 4 * ISO_Y_RATIO);
-        g.lineBetween(x - 3, y - 6 * ISO_Y_RATIO, x + 2, y + 7 * ISO_Y_RATIO);
+        g.lineBetween(-8, -3 * ISO_Y_RATIO, 5, 4 * ISO_Y_RATIO);
+        g.lineBetween(-3, -6 * ISO_Y_RATIO, 2, 7 * ISO_Y_RATIO);
         break;
       }
     }
@@ -497,13 +496,13 @@ export class MapScene extends Phaser.Scene {
 
     // Draw isometric selection outline
     const outlineVerts = isoHexVertices(HEX_SIZE + 2);
-    this.selectionOutline = this.add.graphics();
+    this.selectionOutline = this.add.graphics({ x, y });
     this.selectionOutline.setDepth(hexDepth(q, r, spriteData.elevation) + 20);
     this.selectionOutline.lineStyle(2, 0x00ff88, 0.9);
     this.selectionOutline.beginPath();
-    this.selectionOutline.moveTo(x + outlineVerts[0].x, y + outlineVerts[0].y);
+    this.selectionOutline.moveTo(outlineVerts[0].x, outlineVerts[0].y);
     for (let i = 1; i < 6; i++) {
-      this.selectionOutline.lineTo(x + outlineVerts[i].x, y + outlineVerts[i].y);
+      this.selectionOutline.lineTo(outlineVerts[i].x, outlineVerts[i].y);
     }
     this.selectionOutline.closePath();
     this.selectionOutline.strokePath();
