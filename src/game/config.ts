@@ -12,7 +12,7 @@ export function createGameConfig(parent: string): Phaser.Types.Core.GameConfig {
       autoCenter: Phaser.Scale.CENTER_BOTH,
     },
     input: {
-      mouse: { preventDefaultWheel: false },
+      mouse: { preventDefaultWheel: true },
     },
   };
 }

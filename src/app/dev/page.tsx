@@ -6,7 +6,7 @@ import { generateMap } from '@/lib/game/map';
 import { createInitialPlayer, calculateSeats, calculateRequiredParts } from '@/lib/game/lifecycle';
 import { resolveTick } from '@/lib/game/tick';
 import { getVisibleHexes } from '@/lib/game/fog';
-import { GAME_DEFAULTS, BIOMES } from '@/lib/constants';
+import { GAME_DEFAULTS, BIOMES, STRUCTURES, ITEMS } from '@/lib/constants';
 import type { Game, Player, Hex, Action, ActionType, TickReport as TickReportType, GameState } from '@/lib/types';
 import StatusBar from '@/components/game/StatusBar';
 import ActionPanel from '@/components/game/ActionPanel';
@@ -225,6 +225,23 @@ export default function DevPage() {
       };
       setLatestReport(report);
       setShowReport(true);
+    }
+
+    // Log build/craft results
+    const me = updatedPlayers.find(p => p.id === player.id);
+    if (me) {
+      const newStructures = me.structures.filter(s => !player.structures.includes(s));
+      for (const s of newStructures) {
+        const def = STRUCTURES[s];
+        addLog(`Built: ${def?.name ?? s}`);
+      }
+      for (const item of me.inventory) {
+        const prev = player.inventory.find(i => i.id === item.id);
+        const prevQty = prev?.quantity ?? 0;
+        if (item.quantity > prevQty && ITEMS[item.id]) {
+          addLog(`Crafted: ${ITEMS[item.id].name} (x${item.quantity - prevQty})`);
+        }
+      }
     }
 
     // Log summary

@@ -5,7 +5,7 @@ import {
   WALL_SHADING, ISO_Y_RATIO,
 } from '../hex';
 import type { Hex, Player } from '@/lib/types';
-import { BIOMES } from '@/lib/constants';
+import { BIOMES, STRUCTURES } from '@/lib/constants';
 
 const PLAYER_COLORS = [
   0x00ff88, 0xff6666, 0x66ccff, 0xffaa00, 0xff66ff,
@@ -28,6 +28,7 @@ export class MapScene extends Phaser.Scene {
   private selectionOutline: Phaser.GameObjects.Graphics | null = null;
   private selectionTween: Phaser.Tweens.Tween | null = null;
   private hullPulse: Phaser.Tweens.Tween | null = null;
+  private campGroup: Phaser.GameObjects.Container | null = null;
   private isDragging = false;
   private dragStart = { x: 0, y: 0 };
   private camStart = { x: 0, y: 0 };
@@ -363,6 +364,8 @@ export class MapScene extends Phaser.Scene {
     const y = baseY - elev * ELEVATION_UNIT;
     const depth = hexDepth(player.position_q, player.position_r, elev) + 50;
 
+    this.renderCamp(player);
+
     if (this.playerGroup) {
       this.playerGroup.setPosition(x, y);
       this.playerGroup.setDepth(depth);
@@ -412,6 +415,59 @@ export class MapScene extends Phaser.Scene {
     });
 
     this.playerGroup = container;
+  }
+
+  private renderCamp(player: Player) {
+    if (this.campGroup) {
+      this.campGroup.destroy();
+      this.campGroup = null;
+    }
+
+    if (player.camp_q == null || player.camp_r == null || player.structures.length === 0) return;
+
+    const { x, y: baseY } = axialToIso(player.camp_q, player.camp_r);
+    const key = this.hexKey(player.camp_q, player.camp_r);
+    const sprite = this.hexSprites.get(key);
+    const elev = sprite?.elevation ?? 0;
+    const y = baseY - elev * ELEVATION_UNIT;
+    const depth = hexDepth(player.camp_q, player.camp_r, elev) + 8;
+
+    const container = this.add.container(x, y);
+    container.setDepth(depth);
+
+    // Amber hex outline around camp
+    const ring = this.add.graphics();
+    const verts = isoHexVertices(HEX_SIZE - 3);
+    ring.lineStyle(2, 0xffaa00, 0.6);
+    ring.beginPath();
+    ring.moveTo(verts[0].x, verts[0].y);
+    for (let i = 1; i < 6; i++) {
+      ring.lineTo(verts[i].x, verts[i].y);
+    }
+    ring.closePath();
+    ring.strokePath();
+    container.add(ring);
+
+    // CAMP label at top
+    const campLabel = this.add.text(0, -HEX_SIZE * ISO_Y_RATIO + 2, 'CAMP', {
+      fontSize: '7px',
+      color: '#ffaa00',
+      fontStyle: 'bold',
+      letterSpacing: 1,
+    }).setOrigin(0.5).setAlpha(0.8);
+    container.add(campLabel);
+
+    // Structure names at bottom
+    const names = player.structures
+      .map(s => STRUCTURES[s]?.name ?? s)
+      .join(', ');
+    const structLabel = this.add.text(0, HEX_SIZE * ISO_Y_RATIO - 2, names, {
+      fontSize: '6px',
+      color: '#ffaa00',
+    }).setOrigin(0.5).setAlpha(0.6);
+    container.add(structLabel);
+
+    this.campGroup = container;
   }
 
   renderOtherPlayers(players: Player[]) {
