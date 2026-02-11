@@ -27,7 +27,7 @@ export function resolveTick(state: GameState, options?: TickOptions): TickResult
 
   const updatedPlayers = players.map(p => structuredClone(p));
   const updatedHexes = hexes.map(h => structuredClone(h));
-  const narratives: Map<string, HexEventResult> = new Map();
+  const narratives: Map<string, HexEventResult[]> = new Map();
 
   // --- 1. Movement ---
   resolveMovement(updatedPlayers, actions, updatedHexes);
@@ -62,14 +62,25 @@ export function resolveTick(state: GameState, options?: TickOptions): TickResult
 
   // --- 10. Generate reports ---
   const reports = updatedPlayers.map(player => {
-    const event = narratives.get(player.id);
+    const events = narratives.get(player.id);
+    let narrative: string | null = null;
+    let outcomes: Record<string, unknown> = {};
+    if (events && events.length > 0) {
+      narrative = events.map(e => e.narrative).join('\n\n');
+      for (const e of events) {
+        for (const [key, val] of Object.entries(e.outcomes)) {
+          const prev = (outcomes[key] as number) ?? 0;
+          outcomes[key] = prev + (typeof val === 'number' ? val : 0);
+        }
+      }
+    }
     return {
       game_id: game.id,
       player_id: player.id,
       tick_number: game.tick_number,
       report_type: 'tick' as const,
-      narrative: event?.narrative ?? null,
-      outcomes: event?.outcomes ?? {},
+      narrative,
+      outcomes,
     };
   });
 
@@ -207,7 +218,7 @@ function resolveActions(
   actions: Action[],
   hexes: Hex[],
   game: GameState['game'],
-  narratives: Map<string, HexEventResult>,
+  narratives: Map<string, HexEventResult[]>,
 ) {
   for (const action of actions) {
     if (action.action_type === 'move') continue;
@@ -218,7 +229,11 @@ function resolveActions(
     switch (action.action_type) {
       case 'gather': {
         const event = resolveGather(player, hexes);
-        if (event) narratives.set(player.id, event);
+        if (event) {
+          const existing = narratives.get(player.id) ?? [];
+          existing.push(event);
+          narratives.set(player.id, existing);
+        }
         break;
       }
       case 'sleep':
