@@ -430,42 +430,66 @@ export class MapScene extends Phaser.Scene {
     const sprite = this.hexSprites.get(key);
     const elev = sprite?.elevation ?? 0;
     const y = baseY - elev * ELEVATION_UNIT;
+    // Render above hex but below player avatar
     const depth = hexDepth(player.camp_q, player.camp_r, elev) + 8;
 
     const container = this.add.container(x, y);
     container.setDepth(depth);
 
+    // Semi-transparent amber fill over hex
+    const fill = this.add.graphics();
+    const fillVerts = isoHexVertices(HEX_SIZE - 2);
+    fill.fillStyle(0xffaa00, 0.12);
+    fill.beginPath();
+    fill.moveTo(fillVerts[0].x, fillVerts[0].y);
+    for (let i = 1; i < 6; i++) fill.lineTo(fillVerts[i].x, fillVerts[i].y);
+    fill.closePath();
+    fill.fillPath();
+    container.add(fill);
+
     // Amber hex outline around camp
     const ring = this.add.graphics();
-    const verts = isoHexVertices(HEX_SIZE - 3);
-    ring.lineStyle(2, 0xffaa00, 0.6);
+    const verts = isoHexVertices(HEX_SIZE - 2);
+    ring.lineStyle(3, 0xffaa00, 0.8);
     ring.beginPath();
     ring.moveTo(verts[0].x, verts[0].y);
-    for (let i = 1; i < 6; i++) {
-      ring.lineTo(verts[i].x, verts[i].y);
-    }
+    for (let i = 1; i < 6; i++) ring.lineTo(verts[i].x, verts[i].y);
     ring.closePath();
     ring.strokePath();
     container.add(ring);
 
-    // CAMP label at top
-    const campLabel = this.add.text(0, -HEX_SIZE * ISO_Y_RATIO + 2, 'CAMP', {
-      fontSize: '7px',
+    // Structure badge — positioned at top-right of hex so it's visible even when player is on top
+    const badgeX = HEX_SIZE * 0.45;
+    const badgeY = -HEX_SIZE * ISO_Y_RATIO * 0.5;
+
+    const badgeBg = this.add.graphics();
+    const badgeW = 8 + player.structures.length * 10;
+    badgeBg.fillStyle(0x1a1a2e, 0.9);
+    badgeBg.fillRoundedRect(badgeX - badgeW / 2, badgeY - 8, badgeW, 16, 4);
+    badgeBg.lineStyle(1, 0xffaa00, 0.8);
+    badgeBg.strokeRoundedRect(badgeX - badgeW / 2, badgeY - 8, badgeW, 16, 4);
+    container.add(badgeBg);
+
+    // Structure icons in badge
+    const structIcons: Record<string, string> = {
+      lean_to: '\u{1F3D5}',
+      workbench: '\u{1F527}',
+      watchtower: '\u{1F4E1}',
+      stash: '\u{1F4E6}',
+    };
+    const iconStr = player.structures.map(s => structIcons[s] ?? '\u25A0').join('');
+    const badgeText = this.add.text(badgeX, badgeY, iconStr, {
+      fontSize: '10px',
+    }).setOrigin(0.5);
+    container.add(badgeText);
+
+    // CAMP label below hex
+    const campLabel = this.add.text(0, HEX_SIZE * ISO_Y_RATIO + 4, 'CAMP', {
+      fontSize: '9px',
       color: '#ffaa00',
       fontStyle: 'bold',
-      letterSpacing: 1,
-    }).setOrigin(0.5).setAlpha(0.8);
+    }).setOrigin(0.5).setAlpha(0.9);
     container.add(campLabel);
-
-    // Structure names at bottom
-    const names = player.structures
-      .map(s => STRUCTURES[s]?.name ?? s)
-      .join(', ');
-    const structLabel = this.add.text(0, HEX_SIZE * ISO_Y_RATIO - 2, names, {
-      fontSize: '6px',
-      color: '#ffaa00',
-    }).setOrigin(0.5).setAlpha(0.6);
-    container.add(structLabel);
 
     this.campGroup = container;
   }
